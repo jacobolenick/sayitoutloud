@@ -94,7 +94,16 @@
         </div>
 
         <div class="camera-join-actions">
+          <a class="btn-primary hidden" id="native-camera-link">Open Camera app</a>
           <button class="btn-primary hidden" id="camera-start-btn" type="button">Open camera</button>
+          <input
+            class="sr-only"
+            id="native-camera-input"
+            type="file"
+            accept="video/*"
+            capture="environment"
+            tabindex="-1"
+          />
         </div>
       </section>
 

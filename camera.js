@@ -11,6 +11,8 @@ const cameraForm = document.getElementById("camera-code-form");
 const cameraCodeInput = document.getElementById("camera-code-input");
 const cameraVideo = document.getElementById("camera-join-video");
 const cameraStartBtn = document.getElementById("camera-start-btn");
+const nativeCameraLink = document.getElementById("native-camera-link");
+const nativeCameraInput = document.getElementById("native-camera-input");
 const cameraFlipBtn = document.getElementById("camera-flip-btn");
 const cameraAppUi = document.getElementById("camera-app-ui");
 const cameraRecordBtn = document.getElementById("camera-record-btn");
@@ -189,7 +191,7 @@ function showDock(stream) {
   cameraPreview.play().catch(() => {});
   cameraDock.classList.remove("hidden");
   camPanel.classList.add("is-connected");
-  camHintEl.textContent = "Phone connected. Press Record on your phone to save the video. You'll see yourself here.";
+  camHintEl.textContent = "Phone connected. Press Record to open the Camera app. You'll see yourself here when you come back.";
   if (camState.x == null || camState.y == null) loadDockPos();
   applyDockPos();
   setCameraHidden(localStorage.getItem(HIDDEN_KEY) === "1");
@@ -244,8 +246,8 @@ function startHost(forceNew) {
   const local =
     location.hostname === "localhost" || location.hostname === "127.0.0.1";
   camHintEl.textContent = local
-    ? "Scan or open the unique link on your phone, then press Record. Phones need HTTPS, so localhost will not unlock the camera."
-    : "Scan the QR or type the code on your phone, then press Record. You'll see yourself here.";
+    ? "Scan the QR on your Pixel to open the Camera app. Live preview on this computer needs HTTPS, so localhost will not show you here."
+    : "Scan the QR on your phone to open the Camera app. Press Record there, then return to the page to see yourself here.";
   renderQr(url);
 
   const peer = new Peer(peerIdFromCode(camState.code), peerConfig());
@@ -386,8 +388,73 @@ async function keepAwake() {
   }
 }
 
+function isAndroid() {
+  return /Android/i.test(navigator.userAgent);
+}
+
+function cameraIntentUrl() {
+  const fallback = new URL(window.location.href);
+  fallback.searchParams.set("returned", "1");
+  return `intent://#Intent;action=android.media.action.VIDEO_CAMERA;S.browser_fallback_url=${encodeURIComponent(fallback.toString())};end`;
+}
+
+function releasePhoneStream() {
+  if (!camState.stream) return;
+  camState.stream.getTracks().forEach((track) => track.stop());
+  camState.stream = null;
+  cameraVideo.srcObject = null;
+  cameraVideo.classList.remove("is-on");
+  document.body.classList.remove("camera-live", "camera-recording");
+}
+
+function openNativeCameraApp(fromUser) {
+  releasePhoneStream();
+  cameraAppUi?.classList.add("hidden");
+  cameraCopy.textContent = "Opening the Camera app…";
+  nativeCameraLink?.classList.remove("hidden");
+  cameraStartBtn.classList.add("hidden");
+  if (nativeCameraLink) nativeCameraLink.href = cameraIntentUrl();
+
+  if (fromUser) nativeCameraInput?.click();
+  window.location.href = cameraIntentUrl();
+  if (!fromUser) {
+    window.setTimeout(() => {
+      if (!document.hidden) nativeCameraInput?.click();
+    }, 500);
+  }
+}
+
+function showNativeCameraLaunch() {
+  cameraForm.classList.add("hidden");
+  cameraAppUi?.classList.add("hidden");
+  cameraStartBtn.classList.add("hidden");
+  nativeCameraLink?.classList.remove("hidden");
+  if (nativeCameraLink) nativeCameraLink.href = cameraIntentUrl();
+  cameraCopy.textContent = "This opens the Camera app on your Pixel. Press Record there.";
+  setJoinStatus("Come back to this page after you record to see yourself on the computer.");
+}
+
+function launchNativeCameraIfNeeded() {
+  if (!isAndroid()) return false;
+  showNativeCameraLaunch();
+  if (new URLSearchParams(window.location.search).get("returned") === "1") {
+    startPhoneCamera(camState.code);
+    return true;
+  }
+  if (!sessionStorage.getItem("siol-native-cam")) {
+    sessionStorage.setItem("siol-native-cam", "1");
+    openNativeCameraApp(false);
+  }
+  return true;
+}
+
 function showCameraFallback(message) {
   cameraAppUi?.classList.add("hidden");
+  if (isAndroid()) {
+    showNativeCameraLaunch();
+    cameraCopy.textContent = message;
+    return;
+  }
   cameraStartBtn.classList.remove("hidden");
   cameraStartBtn.textContent = "Open camera";
   cameraCopy.textContent = message;
@@ -507,6 +574,10 @@ function stopPhoneRecord() {
 }
 
 function togglePhoneRecord() {
+  if (isAndroid()) {
+    openNativeCameraApp(true);
+    return;
+  }
   if (recState.recording) stopPhoneRecord();
   else startPhoneRecord();
 }
@@ -559,7 +630,21 @@ function bindCameraControls(code) {
   camState.code = code;
   if (cameraControlsBound) return;
   cameraControlsBound = true;
-  cameraStartBtn.addEventListener("click", () => startPhoneCamera(camState.code));
+  cameraStartBtn.addEventListener("click", () => {
+    if (isAndroid()) openNativeCameraApp(true);
+    else startPhoneCamera(camState.code);
+  });
+  nativeCameraLink?.addEventListener("click", (event) => {
+    event.preventDefault();
+    openNativeCameraApp(true);
+  });
+  nativeCameraInput?.addEventListener("change", () => {
+    if (camState.code) startPhoneCamera(camState.code);
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden || !isAndroid() || !camState.code || camState.stream) return;
+    startPhoneCamera(camState.code);
+  });
   cameraFlipBtn.addEventListener("click", async () => {
     if (recState.recording) return;
     camState.facing = camState.facing === "user" ? "environment" : "user";
@@ -587,13 +672,15 @@ function initPhonePage(codeFromUrl) {
       history.replaceState({}, "", `?cam=${next}`);
       cameraForm.classList.add("hidden");
       bindCameraControls(next);
-      await startPhoneCamera(next);
+      if (isAndroid()) launchNativeCameraIfNeeded();
+      else await startPhoneCamera(next);
     });
     return;
   }
 
   bindCameraControls(code);
-  startPhoneCamera(code);
+  if (isAndroid()) launchNativeCameraIfNeeded();
+  else startPhoneCamera(code);
 }
 
 function setupDockDrag() {

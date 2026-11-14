@@ -277,10 +277,15 @@ body.is-camera-page.camera-live #camera-join-video.is-on {
   margin-top: 22px;
 }
 
-#camera-start-btn {
+#camera-start-btn,
+#native-camera-link {
   min-width: min(280px, 86vw);
   min-height: 56px;
   font-size: 1.05rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .camera-app-ui {
