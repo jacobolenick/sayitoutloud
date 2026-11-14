@@ -14,7 +14,7 @@ const FONT_STEP = 4;
 const PAD_MIN = 0;
 const PAD_MAX = 240;
 const PAD_STEP = 8;
-const WINDOW_WORDS = 8;
+const WINDOW_WORDS = 2;
 const DEFAULT_PADDING = { top: 0, right: 24, bottom: 24, left: 24 };
 
 const editor = document.getElementById("editor");
@@ -42,6 +42,7 @@ const camPanel = document.getElementById("cam-panel");
 const isCameraPage = new URLSearchParams(window.location.search).has("cam");
 const progressFill = document.getElementById("progress-fill");
 const recPill = document.getElementById("rec-pill");
+const recLabel = document.getElementById("rec-label");
 const timerEl = document.getElementById("timer");
 const statusBar = document.getElementById("status-bar");
 const padLabels = {
@@ -63,6 +64,7 @@ const state = {
   idleTimer: 0,
   elapsedMs: 0,
   playStartedAt: 0,
+  hasStarted: false,
 };
 
 function clamp(value, min, max) {
@@ -130,7 +132,7 @@ function updateLabels() {
     padLabels[side].textContent = `${state.padding[side]} px`;
   }
   track.style.setProperty("--script-size", `${state.fontSize}px`);
-  document.querySelector(".focus-band").style.height = `${state.fontSize * 1.45 * 2}px`;
+  document.querySelector(".focus-band").style.height = `${state.fontSize * 1.45}px`;
   applyPadding();
 }
 
@@ -246,6 +248,14 @@ function resetTimer() {
   updateTimer();
 }
 
+function updateRecPill() {
+  recPill.classList.toggle("is-disabled", !state.hasStarted);
+  recPill.classList.toggle("is-live", state.playing);
+  recPill.classList.toggle("is-paused", state.hasStarted && !state.playing);
+  recLabel.textContent = state.playing ? "Recording" : state.hasStarted ? "Paused" : "Recording";
+  recPill.setAttribute("aria-disabled", state.hasStarted ? "false" : "true");
+}
+
 function setPlaying(playing) {
   if (playing && state.words.length && state.index >= state.words.length) {
     restart();
@@ -253,10 +263,11 @@ function setPlaying(playing) {
 
   const wasPlaying = state.playing;
   state.playing = playing;
+  if (playing) state.hasStarted = true;
   playIcon.classList.toggle("hidden", playing);
   pauseIcon.classList.toggle("hidden", !playing);
   playBtn.setAttribute("aria-label", playing ? "Pause" : "Play");
-  recPill.classList.toggle("is-live", playing);
+  updateRecPill();
 
   if (playing) {
     const now = performance.now();
@@ -319,8 +330,10 @@ function startPrompter() {
   prompter.classList.remove("hidden");
   updateLabels();
   track.style.transform = `translateY(${focusOffset()}px)`;
+  state.hasStarted = false;
   setPlaying(false);
   resetTimer();
+  updateRecPill();
   showControls();
 
   requestAnimationFrame(() => {
@@ -344,7 +357,9 @@ function closeCamPanel() {
 
 function returnToEditor() {
   setPlaying(false);
+  state.hasStarted = false;
   resetTimer();
+  updateRecPill();
   closePadPanel();
   closeCamPanel();
   prompter.classList.add("hidden");

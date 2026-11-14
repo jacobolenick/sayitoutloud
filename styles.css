@@ -312,20 +312,39 @@ body.is-camera-page .prompter {
   color: var(--muted);
 }
 
+.rec-pill.is-disabled {
+  opacity: 0.38;
+}
+
+.rec-pill.is-disabled .rec-dot {
+  background: #6e6a63;
+}
+
+.rec-pill.is-paused {
+  color: var(--muted);
+}
+
+.rec-pill.is-paused .rec-dot {
+  background: #c4544a;
+  opacity: 0.55;
+}
+
 .rec-pill.is-live {
   color: var(--text);
+  opacity: 1;
 }
 
 .rec-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #c4544a;
+  background: #6e6a63;
   box-shadow: 0 0 0 0 rgba(196, 84, 74, 0.5);
 }
 
 .rec-pill.is-live .rec-dot {
   background: #ef4d42;
+  opacity: 1;
   animation: rec-flash 1s ease-in-out infinite;
 }
 
@@ -374,7 +393,7 @@ body.is-camera-page .prompter {
   left: var(--pad-left, 24px);
   right: var(--pad-right, 24px);
   top: var(--focus-top, 46px);
-  height: 2.9em;
+  height: 1.45em;
   pointer-events: none;
   z-index: 2;
   border-top: 1px solid rgba(244, 241, 234, 0.16);
