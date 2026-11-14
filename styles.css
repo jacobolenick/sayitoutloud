@@ -281,7 +281,7 @@ body.is-camera-page .prompter {
 
 .status-bar {
   position: absolute;
-  top: calc(14px + var(--safe-top));
+  top: calc(8px + var(--safe-top));
   left: 50%;
   transform: translateX(-50%);
   z-index: 6;
@@ -363,9 +363,8 @@ body.is-camera-page .prompter {
   z-index: 3;
   background: linear-gradient(
     to bottom,
-    var(--bg) 0%,
-    transparent 16%,
-    transparent 78%,
+    transparent 0%,
+    transparent 72%,
     var(--bg) 100%
   );
 }
@@ -374,7 +373,7 @@ body.is-camera-page .prompter {
   position: absolute;
   left: var(--pad-left, 24px);
   right: var(--pad-right, 24px);
-  top: var(--focus-top, 28vh);
+  top: var(--focus-top, 46px);
   height: 2.9em;
   pointer-events: none;
   z-index: 2;
@@ -391,7 +390,7 @@ body.is-camera-page .prompter {
   width: auto;
   transform: translateY(0);
   will-change: transform;
-  padding-top: var(--pad-top, 24px);
+  padding-top: var(--pad-top, 46px);
   padding-bottom: calc(70vh + var(--pad-bottom, 24px));
 }
 
@@ -431,7 +430,40 @@ body.is-camera-page .prompter {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  pointer-events: none;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.camera-dock.is-dragging {
+  cursor: grabbing;
+}
+
+.camera-dock.is-hidden .camera-frame,
+.camera-dock.is-hidden .camera-frame-bar {
+  display: none;
+}
+
+.camera-show-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(12, 12, 11, 0.72);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  cursor: pointer;
+}
+
+.camera-dock.is-hidden .camera-show-btn {
+  display: flex;
 }
 
 .camera-frame {
@@ -441,7 +473,6 @@ body.is-camera-page .prompter {
   border: 1px solid var(--line);
   background: #111110;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
-  pointer-events: auto;
 }
 
 .camera-frame.is-vertical {
@@ -471,7 +502,6 @@ body.is-camera-page .prompter {
   border: 1px solid var(--line);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  pointer-events: auto;
 }
 
 .camera-orient {

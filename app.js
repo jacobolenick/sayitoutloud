@@ -15,7 +15,7 @@ const PAD_MIN = 0;
 const PAD_MAX = 240;
 const PAD_STEP = 8;
 const WINDOW_WORDS = 8;
-const DEFAULT_PADDING = { top: 24, right: 24, bottom: 24, left: 24 };
+const DEFAULT_PADDING = { top: 0, right: 24, bottom: 24, left: 24 };
 
 const editor = document.getElementById("editor");
 const prompter = document.getElementById("prompter");
@@ -43,6 +43,7 @@ const isCameraPage = new URLSearchParams(window.location.search).has("cam");
 const progressFill = document.getElementById("progress-fill");
 const recPill = document.getElementById("rec-pill");
 const timerEl = document.getElementById("timer");
+const statusBar = document.getElementById("status-bar");
 const padLabels = {
   top: document.getElementById("pad-top-label"),
   right: document.getElementById("pad-right-label"),
@@ -104,9 +105,18 @@ function saveSettings() {
   localStorage.setItem(STORAGE_KEYS.padding, JSON.stringify(state.padding));
 }
 
+function statusOffset() {
+  if (!statusBar || !viewport) return 46;
+  const viewportBox = viewport.getBoundingClientRect();
+  const barBox = statusBar.getBoundingClientRect();
+  if (!barBox.height) return 46;
+  return Math.round(barBox.bottom - viewportBox.top + 6);
+}
+
 function applyPadding() {
   const { top, right, bottom, left } = state.padding;
-  viewport.style.setProperty("--pad-top", `${top}px`);
+  const base = statusOffset();
+  viewport.style.setProperty("--pad-top", `${base + top}px`);
   viewport.style.setProperty("--pad-right", `${right}px`);
   viewport.style.setProperty("--pad-bottom", `${bottom}px`);
   viewport.style.setProperty("--pad-left", `${left}px`);
@@ -178,10 +188,7 @@ function paintWords() {
 }
 
 function focusOffset() {
-  const height = viewport.clientHeight;
-  const top = state.padding.top;
-  const bottom = state.padding.bottom;
-  return top + Math.max(height - top - bottom, 0) * 0.28;
+  return statusOffset() + state.padding.top;
 }
 
 function currentWordEl() {
@@ -316,7 +323,10 @@ function startPrompter() {
   resetTimer();
   showControls();
 
-  requestAnimationFrame(() => syncScroll());
+  requestAnimationFrame(() => {
+    updateLabels();
+    syncScroll();
+  });
 }
 
 function closePadPanel() {

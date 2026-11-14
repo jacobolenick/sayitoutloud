@@ -1,6 +1,8 @@
 const PEER_PREFIX = "siol-";
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const ORIENT_KEY = "sayitoutloud.cameraOrient";
+const POS_KEY = "sayitoutloud.cameraPos";
+const HIDDEN_KEY = "sayitoutloud.cameraHidden";
 
 const cameraJoin = document.getElementById("camera-join");
 const cameraCopy = document.getElementById("camera-join-copy");
@@ -21,6 +23,10 @@ const camCopyBtn = document.getElementById("cam-copy-btn");
 const camNewBtn = document.getElementById("cam-new-btn");
 const orientVertical = document.getElementById("orient-vertical");
 const orientHorizontal = document.getElementById("orient-horizontal");
+const camHideBtn = document.getElementById("cam-hide-btn");
+const camShowBtn = document.getElementById("cam-show-btn");
+const camVisibilityBtn = document.getElementById("cam-visibility-btn");
+const camUnhideBtn = document.getElementById("cam-unhide-btn");
 
 const camState = {
   code: "",
@@ -29,6 +35,12 @@ const camState = {
   call: null,
   stream: null,
   facing: "user",
+  x: null,
+  y: null,
+  hidden: false,
+  dragging: false,
+  dragOffsetX: 0,
+  dragOffsetY: 0,
 };
 
 function randomCode() {
@@ -99,6 +111,72 @@ function setOrientation(mode) {
   orientVertical.classList.toggle("is-active", mode === "vertical");
   orientHorizontal.classList.toggle("is-active", mode === "horizontal");
   localStorage.setItem(ORIENT_KEY, mode);
+  requestAnimationFrame(clampDockPos);
+}
+
+function defaultDockPos() {
+  const width = cameraDock.offsetWidth || 140;
+  const height = cameraDock.offsetHeight || 280;
+  return {
+    x: Math.max(8, (window.innerWidth - width) / 2),
+    y: Math.max(8, window.innerHeight - height - 96),
+  };
+}
+
+function applyDockPos() {
+  cameraDock.style.left = `${camState.x}px`;
+  cameraDock.style.top = `${camState.y}px`;
+  cameraDock.style.right = "auto";
+  cameraDock.style.bottom = "auto";
+  cameraDock.style.transform = "none";
+}
+
+function clampDockPos() {
+  if (camState.x == null || camState.y == null) return;
+  const width = cameraDock.offsetWidth || 40;
+  const height = cameraDock.offsetHeight || 40;
+  camState.x = clamp(camState.x, 8, Math.max(8, window.innerWidth - width - 8));
+  camState.y = clamp(camState.y, 8, Math.max(8, window.innerHeight - height - 8));
+  applyDockPos();
+}
+
+function saveDockPos() {
+  localStorage.setItem(POS_KEY, JSON.stringify({ x: camState.x, y: camState.y }));
+}
+
+function loadDockPos() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(POS_KEY) || "null");
+    if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+      camState.x = saved.x;
+      camState.y = saved.y;
+      return;
+    }
+  } catch {
+    /* use default */
+  }
+  const pos = defaultDockPos();
+  camState.x = pos.x;
+  camState.y = pos.y;
+}
+
+function updateVisibilityLabel() {
+  const connected = Boolean(camState.stream);
+  if (camVisibilityBtn) {
+    camVisibilityBtn.textContent = camState.hidden ? "Unhide" : "Hide camera";
+    camVisibilityBtn.classList.toggle("hidden", !connected);
+  }
+  if (camUnhideBtn) {
+    camUnhideBtn.classList.toggle("hidden", !(connected && camState.hidden));
+  }
+}
+
+function setCameraHidden(hidden) {
+  camState.hidden = hidden;
+  cameraDock.classList.toggle("is-hidden", hidden);
+  localStorage.setItem(HIDDEN_KEY, hidden ? "1" : "0");
+  updateVisibilityLabel();
+  requestAnimationFrame(clampDockPos);
 }
 
 function showDock(stream) {
@@ -106,13 +184,18 @@ function showDock(stream) {
   cameraPreview.play().catch(() => {});
   cameraDock.classList.remove("hidden");
   camPanel.classList.add("is-connected");
-  camHintEl.textContent = "Phone connected. Leave that page open while you record.";
+  camHintEl.textContent = "Phone connected. Drag the preview anywhere. Leave that page open while you record.";
+  if (camState.x == null || camState.y == null) loadDockPos();
+  applyDockPos();
+  setCameraHidden(localStorage.getItem(HIDDEN_KEY) === "1");
+  requestAnimationFrame(clampDockPos);
 }
 
 function hideDock() {
   cameraPreview.srcObject = null;
   cameraDock.classList.add("hidden");
   camPanel.classList.remove("is-connected");
+  updateVisibilityLabel();
 }
 
 function listenForPhone(peer) {
@@ -294,6 +377,42 @@ function initPhonePage(codeFromUrl) {
   });
 }
 
+function setupDockDrag() {
+  cameraDock.addEventListener("pointerdown", (event) => {
+    if (event.target.closest(".camera-orient")) return;
+    camState.dragging = true;
+    camState.moved = false;
+    camState.dragOffsetX = event.clientX - camState.x;
+    camState.dragOffsetY = event.clientY - camState.y;
+    cameraDock.classList.add("is-dragging");
+    cameraDock.setPointerCapture(event.pointerId);
+  });
+
+  cameraDock.addEventListener("pointermove", (event) => {
+    if (!camState.dragging) return;
+    const x = event.clientX - camState.dragOffsetX;
+    const y = event.clientY - camState.dragOffsetY;
+    if (!camState.moved && Math.hypot(x - camState.x, y - camState.y) < 4) return;
+    camState.moved = true;
+    camState.x = x;
+    camState.y = y;
+    clampDockPos();
+  });
+
+  const endDrag = (event) => {
+    if (!camState.dragging) return;
+    camState.dragging = false;
+    cameraDock.classList.remove("is-dragging");
+    if (cameraDock.hasPointerCapture?.(event.pointerId)) {
+      cameraDock.releasePointerCapture(event.pointerId);
+    }
+    saveDockPos();
+  };
+
+  cameraDock.addEventListener("pointerup", endDrag);
+  cameraDock.addEventListener("pointercancel", endDrag);
+}
+
 function initHostPage() {
   const savedOrient = localStorage.getItem(ORIENT_KEY);
   if (savedOrient === "horizontal" || savedOrient === "vertical") {
@@ -316,6 +435,18 @@ function initHostPage() {
   camNewBtn.addEventListener("click", () => startHost(true));
   orientVertical.addEventListener("click", () => setOrientation("vertical"));
   orientHorizontal.addEventListener("click", () => setOrientation("horizontal"));
+  camHideBtn.addEventListener("click", () => setCameraHidden(true));
+  camShowBtn.addEventListener("click", (event) => {
+    if (camState.moved) {
+      event.preventDefault();
+      return;
+    }
+    setCameraHidden(false);
+  });
+  camUnhideBtn.addEventListener("click", () => setCameraHidden(false));
+  camVisibilityBtn.addEventListener("click", () => setCameraHidden(!camState.hidden));
+  setupDockDrag();
+  window.addEventListener("resize", clampDockPos);
 }
 
 const camParam = new URLSearchParams(window.location.search).get("cam");
