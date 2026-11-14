@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c0c0b" />
+    <title>Say it out loud</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  </head>
+  <body>
+    <main id="app">
+      <section class="editor" id="editor" aria-label="Script editor">
+        <header class="editor-header">
+          <p class="mark">Say it out loud</p>
+          <h1>Paste your script.<br />Then just speak.</h1>
+        </header>
+
+        <label class="sr-only" for="script">Script</label>
+        <textarea
+          id="script"
+          placeholder="Paste your Instagram or YouTube script here…"
+          autocomplete="off"
+          spellcheck="true"
+        ></textarea>
+
+        <div class="editor-actions">
+          <button class="btn-primary" id="start-btn" type="button">Start</button>
+          <p class="hint">Space to play. Esc to edit.</p>
+        </div>
+      </section>
+
+      <section class="camera-join hidden" id="camera-join" aria-label="Phone camera">
+        <p class="mark">Say it out loud</p>
+        <h1>Phone camera</h1>
+        <p class="camera-join-copy" id="camera-join-copy">Allow the camera, then keep this page open.</p>
+
+        <form class="camera-code-form hidden" id="camera-code-form">
+          <label class="sr-only" for="camera-code-input">Connection code</label>
+          <input
+            id="camera-code-input"
+            type="text"
+            inputmode="text"
+            autocomplete="off"
+            spellcheck="false"
+            maxlength="8"
+            placeholder="Enter code"
+          />
+          <button class="btn-primary" type="submit">Connect</button>
+        </form>
+
+        <video id="camera-join-video" autoplay playsinline muted></video>
+        <p class="camera-join-status" id="camera-join-status"></p>
+
+        <div class="camera-join-actions">
+          <button class="btn-primary" id="camera-start-btn" type="button">Start camera</button>
+          <button class="btn-secondary hidden" id="camera-flip-btn" type="button">Flip camera</button>
+        </div>
+      </section>
+
+      <section class="prompter hidden" id="prompter" aria-label="Teleprompter">
+        <div class="progress" aria-hidden="true">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+
+        <div class="status-bar" id="status-bar">
+          <div class="rec-pill" id="rec-pill">
+            <span class="rec-dot" aria-hidden="true"></span>
+            Recording
+          </div>
+          <div class="timer-pill" id="timer" aria-label="Reading time">00:00</div>
+        </div>
+
+        <div class="viewport" id="viewport">
+          <div class="focus-band" aria-hidden="true"></div>
+          <div class="track" id="track"></div>
+        </div>
+
+        <div class="camera-dock hidden" id="camera-dock">
+          <div class="camera-frame is-vertical" id="camera-frame">
+            <video id="camera-preview" autoplay playsinline muted></video>
+          </div>
+          <div class="camera-frame-bar">
+            <button class="camera-orient is-active" id="orient-vertical" type="button" aria-label="Vertical video">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="7" y="3" width="10" height="18" rx="2.2" stroke="currentColor" stroke-width="1.8" />
+              </svg>
+            </button>
+            <button class="camera-orient" id="orient-horizontal" type="button" aria-label="Horizontal video">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3" y="7" width="18" height="10" rx="2.2" stroke="currentColor" stroke-width="1.8" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="hud" id="hud">
+          <div class="pad-panel hidden" id="pad-panel" role="group" aria-label="Text padding">
+            <div class="pad-field">
+              <span>Top</span>
+              <div class="ctrl-group">
+                <button class="ctrl-icon" id="pad-top-down" type="button" aria-label="Less top padding">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M6 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                  </svg>
+                </button>
+                <span class="ctrl-value" id="pad-top-label">24 px</span>
+                <button class="ctrl-icon" id="pad-top-up" type="button" aria-label="More top padding">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="pad-field">
+              <span>Bottom</span>
+              <div class="ctrl-group">
+                <button class="ctrl-icon" id="pad-bottom-down" type="button" aria-label="Less bottom padding">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M6 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                  </svg>
+                </button>
+                <span class="ctrl-value" id="pad-bottom-label">24 px</span>
+                <button class="ctrl-icon" id="pad-bottom-up" type="button" aria-label="More bottom padding">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="pad-field">
+              <span>Left</span>
+              <div class="ctrl-group">
+                <button class="ctrl-icon" id="pad-left-down" type="button" aria-label="Less left padding">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M6 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                  </svg>
+                </button>
+                <span class="ctrl-value" id="pad-left-label">24 px</span>
+                <button class="ctrl-icon" id="pad-left-up" type="button" aria-label="More left padding">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="pad-field">
+              <span>Right</span>
+              <div class="ctrl-group">
+                <button class="ctrl-icon" id="pad-right-down" type="button" aria-label="Less right padding">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M6 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                  </svg>
+                </button>
+                <span class="ctrl-value" id="pad-right-label">24 px</span>
+                <button class="ctrl-icon" id="pad-right-up" type="button" aria-label="More right padding">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="cam-panel hidden" id="cam-panel" role="dialog" aria-label="Phone camera connection">
+            <div class="cam-panel-copy">
+              <p class="cam-panel-title">Phone camera</p>
+              <p class="cam-panel-hint" id="cam-panel-hint">Scan the QR or open the link on your phone.</p>
+            </div>
+            <div class="cam-qr" id="cam-qr"></div>
+            <p class="cam-code" id="cam-code">————</p>
+            <p class="cam-link" id="cam-link"></p>
+            <div class="cam-panel-actions">
+              <button class="ctrl-text" id="cam-copy-btn" type="button">Copy link</button>
+              <button class="ctrl-text" id="cam-new-btn" type="button">New code</button>
+            </div>
+          </div>
+
+          <div class="controls" id="controls">
+            <button class="ctrl-text" id="edit-btn" type="button">Edit</button>
+            <button class="ctrl-text" id="pad-btn" type="button" aria-expanded="false">Pad</button>
+            <button class="ctrl-text" id="cam-btn" type="button" aria-expanded="false">Cam</button>
+
+            <div class="ctrl-group" title="Reading speed">
+              <button class="ctrl-icon" id="speed-down" type="button" aria-label="Slower">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M6 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                </svg>
+              </button>
+              <span class="ctrl-value" id="speed-label">140 wpm</span>
+              <button class="ctrl-icon" id="speed-up" type="button" aria-label="Faster">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                </svg>
+              </button>
+            </div>
+
+            <button class="play-btn" id="play-btn" type="button" aria-label="Play">
+              <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor" />
+              </svg>
+              <svg class="icon-pause hidden" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 5h3.5v14H7V5zm6.5 0H17v14h-3.5V5z" fill="currentColor" />
+              </svg>
+            </button>
+
+            <div class="ctrl-group" title="Font size">
+              <button class="ctrl-icon" id="font-down" type="button" aria-label="Smaller text">
+                <span class="aa small">A</span>
+              </button>
+              <span class="ctrl-value" id="font-label">48 px</span>
+              <button class="ctrl-icon" id="font-up" type="button" aria-label="Larger text">
+                <span class="aa large">A</span>
+              </button>
+            </div>
+
+            <button class="ctrl-text" id="restart-btn" type="button">Restart</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+    <script src="camera.js"></script>
+  </body>
+</html>
