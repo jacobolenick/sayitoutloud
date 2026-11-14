@@ -56,7 +56,14 @@
           <button class="btn-primary" type="submit">Connect</button>
         </form>
 
-        <video id="camera-join-video" autoplay playsinline webkit-playsinline muted></video>
+        <video
+          id="camera-join-video"
+          autoplay
+          playsinline
+          webkit-playsinline
+          muted
+          autopictureinpicture
+        ></video>
 
         <div class="camera-app-ui hidden" id="camera-app-ui">
           <div class="camera-app-top">
@@ -64,6 +71,12 @@
               <span class="rec-dot" aria-hidden="true"></span>
               <span id="camera-rec-time">00:00</span>
             </div>
+            <button class="camera-pip-btn" id="camera-pip-btn" type="button" aria-label="Keep video on screen">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.8" />
+                <rect x="12.5" y="11.5" width="6.5" height="5.5" rx="1" fill="currentColor" />
+              </svg>
+            </button>
             <p class="camera-join-status" id="camera-join-status"></p>
           </div>
           <div class="camera-app-bottom">

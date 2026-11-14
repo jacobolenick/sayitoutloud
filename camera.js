@@ -19,6 +19,7 @@ const cameraRecordBtn = document.getElementById("camera-record-btn");
 const cameraSaveBtn = document.getElementById("camera-save-btn");
 const cameraRecBadge = document.getElementById("camera-rec-badge");
 const cameraRecTime = document.getElementById("camera-rec-time");
+const cameraPipBtn = document.getElementById("camera-pip-btn");
 const cameraDock = document.getElementById("camera-dock");
 const cameraFrame = document.getElementById("camera-frame");
 const cameraPreview = document.getElementById("camera-preview");
@@ -388,6 +389,90 @@ async function keepAwake() {
   }
 }
 
+function stopAudioSession() {
+  if (!camState.audioCtx) return;
+  camState.audioCtx.close().catch(() => {});
+  camState.audioCtx = null;
+}
+
+function holdAudioSession(stream) {
+  stopAudioSession();
+  if (!stream?.getAudioTracks().length) return;
+  try {
+    const ctx = new AudioContext();
+    const source = ctx.createMediaStreamSource(stream);
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    source.connect(gain).connect(ctx.destination);
+    ctx.resume().catch(() => {});
+    camState.audioCtx = ctx;
+  } catch {
+    /* optional */
+  }
+}
+
+function keepPhoneVideoPlaying() {
+  if (!cameraVideo || !camState.stream) return;
+  cameraVideo.play().catch(() => {});
+}
+
+async function enterPhonePip() {
+  if (!cameraVideo || !camState.stream) return;
+  keepPhoneVideoPlaying();
+  if (document.pictureInPictureElement === cameraVideo) return;
+  try {
+    if (document.pictureInPictureEnabled !== false) {
+      await cameraVideo.requestPictureInPicture();
+      return;
+    }
+  } catch {
+    /* try webkit next */
+  }
+  try {
+    if (cameraVideo.webkitSupportsPresentationMode?.("picture-in-picture")) {
+      cameraVideo.webkitSetPresentationMode("picture-in-picture");
+    }
+  } catch {
+    /* PiP not available */
+  }
+}
+
+function setPipButtonState(on) {
+  cameraPipBtn?.classList.toggle("is-on", on);
+  cameraPipBtn?.setAttribute("aria-pressed", on ? "true" : "false");
+}
+
+function enableBackgroundPlayback() {
+  if (!cameraVideo) return;
+  cameraVideo.disablePictureInPicture = false;
+  cameraVideo.playsInline = true;
+  keepPhoneVideoPlaying();
+  holdAudioSession(camState.stream);
+
+  if (!navigator.mediaSession) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: "Say it out loud",
+      artist: "Camera",
+    });
+    navigator.mediaSession.playbackState = "playing";
+  } catch {
+    /* optional */
+  }
+  try {
+    navigator.mediaSession.setActionHandler("enterpictureinpicture", () => {
+      enterPhonePip();
+    });
+  } catch {
+    /* older browsers */
+  }
+  try {
+    navigator.mediaSession.setActionHandler("play", () => keepPhoneVideoPlaying());
+  } catch {
+    /* optional */
+  }
+}
+
 function isAndroid() {
   return /Android/i.test(navigator.userAgent);
 }
@@ -402,6 +487,7 @@ function releasePhoneStream() {
   if (!camState.stream) return;
   camState.stream.getTracks().forEach((track) => track.stop());
   camState.stream = null;
+  stopAudioSession();
   cameraVideo.srcObject = null;
   cameraVideo.classList.remove("is-on");
   document.body.classList.remove("camera-live", "camera-recording");
@@ -614,6 +700,7 @@ async function startPhoneCamera(code) {
     cameraCopy.textContent = "Press Record.";
     setJoinStatus("Press Record to start. You'll see yourself on the computer.");
     keepAwake();
+    enableBackgroundPlayback();
     connectPhone(code, camState.stream);
   } catch (error) {
     document.body.classList.remove("camera-live");
@@ -642,8 +729,30 @@ function bindCameraControls(code) {
     if (camState.code) startPhoneCamera(camState.code);
   });
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden || !isAndroid() || !camState.code || camState.stream) return;
-    startPhoneCamera(camState.code);
+    if (document.hidden) {
+      keepPhoneVideoPlaying();
+      enterPhonePip();
+      return;
+    }
+    keepAwake();
+    keepPhoneVideoPlaying();
+    if (isAndroid() && camState.code && !camState.stream) startPhoneCamera(camState.code);
+  });
+  cameraVideo?.addEventListener("pause", () => {
+    if (camState.stream) keepPhoneVideoPlaying();
+  });
+  cameraVideo?.addEventListener("enterpictureinpicture", () => setPipButtonState(true));
+  cameraVideo?.addEventListener("leavepictureinpicture", () => setPipButtonState(false));
+  cameraPipBtn?.addEventListener("click", () => {
+    if (document.pictureInPictureElement === cameraVideo) {
+      document.exitPictureInPicture?.().catch(() => {});
+      return;
+    }
+    enterPhonePip();
+  });
+  window.addEventListener("pagehide", () => {
+    keepPhoneVideoPlaying();
+    enterPhonePip();
   });
   cameraFlipBtn.addEventListener("click", async () => {
     if (recState.recording) return;
