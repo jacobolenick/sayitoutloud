@@ -39,7 +39,7 @@
 
       <section class="camera-join hidden" id="camera-join" aria-label="Phone camera">
         <p class="mark">Say it out loud</p>
-        <h1>Phone camera</h1>
+        <h1>Camera</h1>
         <p class="camera-join-copy" id="camera-join-copy">Opening your camera…</p>
 
         <form class="camera-code-form hidden" id="camera-code-form">
@@ -57,11 +57,44 @@
         </form>
 
         <video id="camera-join-video" autoplay playsinline webkit-playsinline muted></video>
-        <p class="camera-join-status" id="camera-join-status"></p>
+
+        <div class="camera-app-ui hidden" id="camera-app-ui">
+          <div class="camera-app-top">
+            <div class="camera-rec-badge hidden" id="camera-rec-badge">
+              <span class="rec-dot" aria-hidden="true"></span>
+              <span id="camera-rec-time">00:00</span>
+            </div>
+            <p class="camera-join-status" id="camera-join-status"></p>
+          </div>
+          <div class="camera-app-bottom">
+            <button class="camera-flip-btn" id="camera-flip-btn" type="button" aria-label="Flip camera">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M7 7h7a4 4 0 0 1 4 4v1"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+                <path d="M9 5 7 7l2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                <path
+                  d="M17 17H10a4 4 0 0 1-4-4v-1"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+                <path d="M15 19 17 17l-2-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+            <button class="camera-shutter" id="camera-record-btn" type="button" aria-label="Record" aria-pressed="false">
+              <span class="camera-shutter-ring"></span>
+              <span class="camera-shutter-core"></span>
+            </button>
+            <button class="btn-primary camera-save-btn hidden" id="camera-save-btn" type="button">Save</button>
+          </div>
+        </div>
 
         <div class="camera-join-actions">
           <button class="btn-primary hidden" id="camera-start-btn" type="button">Open camera</button>
-          <button class="btn-secondary hidden" id="camera-flip-btn" type="button">Flip camera</button>
         </div>
       </section>
 

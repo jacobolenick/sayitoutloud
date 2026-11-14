@@ -12,6 +12,11 @@ const cameraCodeInput = document.getElementById("camera-code-input");
 const cameraVideo = document.getElementById("camera-join-video");
 const cameraStartBtn = document.getElementById("camera-start-btn");
 const cameraFlipBtn = document.getElementById("camera-flip-btn");
+const cameraAppUi = document.getElementById("camera-app-ui");
+const cameraRecordBtn = document.getElementById("camera-record-btn");
+const cameraSaveBtn = document.getElementById("camera-save-btn");
+const cameraRecBadge = document.getElementById("camera-rec-badge");
+const cameraRecTime = document.getElementById("camera-rec-time");
 const cameraDock = document.getElementById("camera-dock");
 const cameraFrame = document.getElementById("camera-frame");
 const cameraPreview = document.getElementById("camera-preview");
@@ -184,7 +189,7 @@ function showDock(stream) {
   cameraPreview.play().catch(() => {});
   cameraDock.classList.remove("hidden");
   camPanel.classList.add("is-connected");
-  camHintEl.textContent = "Phone connected. Drag the preview anywhere. Leave that page open while you record.";
+  camHintEl.textContent = "Phone connected. Press Record on your phone to save the video. You'll see yourself here.";
   if (camState.x == null || camState.y == null) loadDockPos();
   applyDockPos();
   setCameraHidden(localStorage.getItem(HIDDEN_KEY) === "1");
@@ -239,8 +244,8 @@ function startHost(forceNew) {
   const local =
     location.hostname === "localhost" || location.hostname === "127.0.0.1";
   camHintEl.textContent = local
-    ? "Scan or open the unique link on your phone. The camera opens right away. Phones need HTTPS, so localhost will not unlock it."
-    : "Scan the QR or type the code on your phone. The camera opens right away. Keep that page open.";
+    ? "Scan or open the unique link on your phone, then press Record. Phones need HTTPS, so localhost will not unlock the camera."
+    : "Scan the QR or type the code on your phone, then press Record. You'll see yourself here.";
   renderQr(url);
 
   const peer = new Peer(peerIdFromCode(camState.code), peerConfig());
@@ -275,20 +280,25 @@ function disconnectHost() {
 }
 
 async function getPhoneStream() {
+  const video = {
+    facingMode: { ideal: camState.facing },
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+  };
   try {
-    return await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: {
-        facingMode: { ideal: camState.facing },
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      },
-    });
+    return await navigator.mediaDevices.getUserMedia({ audio: true, video });
   } catch {
-    return navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: { facingMode: camState.facing },
-    });
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: { facingMode: camState.facing },
+      });
+    } catch {
+      return navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: camState.facing },
+      });
+    }
   }
 }
 
@@ -328,14 +338,181 @@ function connectPhone(code, stream) {
 let cameraStarting = false;
 let cameraControlsBound = false;
 
+const recState = {
+  recorder: null,
+  chunks: [],
+  timer: null,
+  startedAt: 0,
+  recording: false,
+  blob: null,
+};
+
+function recorderMime() {
+  const types = ["video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
+  return types.find((type) => window.MediaRecorder?.isTypeSupported?.(type)) || "";
+}
+
+function formatRecTime(ms) {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function tickRecTimer() {
+  if (cameraRecTime) cameraRecTime.textContent = formatRecTime(Date.now() - recState.startedAt);
+}
+
+function setRecordingUi(on) {
+  recState.recording = on;
+  document.body.classList.toggle("camera-recording", on);
+  cameraRecordBtn?.setAttribute("aria-pressed", on ? "true" : "false");
+  cameraRecordBtn?.setAttribute("aria-label", on ? "Stop recording" : "Record");
+  cameraRecBadge?.classList.toggle("hidden", !on);
+  if (!on && cameraRecTime) cameraRecTime.textContent = "00:00";
+}
+
+function stopRecTimer() {
+  if (recState.timer) {
+    clearInterval(recState.timer);
+    recState.timer = null;
+  }
+}
+
+async function keepAwake() {
+  try {
+    if (navigator.wakeLock) camState.wakeLock = await navigator.wakeLock.request("screen");
+  } catch {
+    /* optional */
+  }
+}
+
 function showCameraFallback(message) {
+  cameraAppUi?.classList.add("hidden");
   cameraStartBtn.classList.remove("hidden");
   cameraStartBtn.textContent = "Open camera";
   cameraCopy.textContent = message;
 }
 
+async function saveRecording(blob) {
+  recState.blob = blob;
+  const type = blob.type || "video/webm";
+  const ext = type.includes("mp4") ? "mp4" : "webm";
+  const file = new File([blob], `sayitoutloud-${Date.now()}.${ext}`, { type });
+
+  try {
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: "Recording" });
+      cameraSaveBtn?.classList.add("hidden");
+      setJoinStatus("Saved. Press Record for another take.");
+      return;
+    }
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      cameraSaveBtn?.classList.add("hidden");
+      return;
+    }
+  }
+
+  cameraSaveBtn?.classList.remove("hidden");
+  setJoinStatus("Tap Save to keep the video on your phone.");
+}
+
+async function shareOrDownload() {
+  if (!recState.blob) return;
+  const blob = recState.blob;
+  const type = blob.type || "video/webm";
+  const ext = type.includes("mp4") ? "mp4" : "webm";
+  const file = new File([blob], `sayitoutloud-${Date.now()}.${ext}`, { type });
+
+  try {
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: "Recording" });
+      cameraSaveBtn?.classList.add("hidden");
+      setJoinStatus("Saved. Press Record for another take.");
+      return;
+    }
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+  }
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  cameraSaveBtn?.classList.add("hidden");
+  setJoinStatus("Saved. Press Record for another take.");
+}
+
+function startPhoneRecord() {
+  if (!camState.stream || recState.recording) return;
+  if (typeof MediaRecorder !== "function") {
+    setJoinStatus("This browser cannot save a video file. You can still see yourself on the computer.");
+    connectPhone(camState.code, camState.stream);
+    return;
+  }
+
+  recState.chunks = [];
+  recState.blob = null;
+  cameraSaveBtn?.classList.add("hidden");
+  const mime = recorderMime();
+
+  try {
+    recState.recorder = mime
+      ? new MediaRecorder(camState.stream, { mimeType: mime, videoBitsPerSecond: 3_500_000 })
+      : new MediaRecorder(camState.stream);
+  } catch {
+    setJoinStatus("Could not start recording on this phone.");
+    return;
+  }
+
+  recState.recorder.ondataavailable = (event) => {
+    if (event.data && event.data.size) recState.chunks.push(event.data);
+  };
+  recState.recorder.onerror = () => {
+    setJoinStatus("Recording stopped unexpectedly.");
+    setRecordingUi(false);
+    stopRecTimer();
+  };
+
+  recState.recorder.start(250);
+  recState.startedAt = Date.now();
+  recState.timer = setInterval(tickRecTimer, 250);
+  tickRecTimer();
+  setRecordingUi(true);
+  setJoinStatus("Recording. You're live on the computer.");
+  if (!camState.phonePeer) connectPhone(camState.code, camState.stream);
+}
+
+function stopPhoneRecord() {
+  if (!recState.recording) return;
+  setRecordingUi(false);
+  stopRecTimer();
+
+  const recorder = recState.recorder;
+  if (!recorder || recorder.state === "inactive") return;
+
+  recorder.onstop = () => {
+    const type = recorder.mimeType || "video/webm";
+    const blob = new Blob(recState.chunks, { type });
+    recState.recorder = null;
+    if (!blob.size) {
+      setJoinStatus("Nothing was saved. Press Record to try again.");
+      return;
+    }
+    saveRecording(blob);
+  };
+  recorder.stop();
+}
+
+function togglePhoneRecord() {
+  if (recState.recording) stopPhoneRecord();
+  else startPhoneRecord();
+}
+
 async function startPhoneCamera(code) {
-  if (cameraStarting) return;
+  if (cameraStarting || recState.recording) return;
   camState.code = code;
   if (!window.isSecureContext) {
     showCameraFallback("Phones need a secure link (HTTPS) to use the camera.");
@@ -362,8 +539,10 @@ async function startPhoneCamera(code) {
     document.body.classList.add("camera-live");
     cameraVideo.play().catch(() => {});
     cameraForm.classList.add("hidden");
-    cameraFlipBtn.classList.remove("hidden");
-    cameraCopy.textContent = "Keep this page open.";
+    cameraAppUi?.classList.remove("hidden");
+    cameraCopy.textContent = "Press Record.";
+    setJoinStatus("Press Record to start. You'll see yourself on the computer.");
+    keepAwake();
     connectPhone(code, camState.stream);
   } catch (error) {
     document.body.classList.remove("camera-live");
@@ -382,9 +561,12 @@ function bindCameraControls(code) {
   cameraControlsBound = true;
   cameraStartBtn.addEventListener("click", () => startPhoneCamera(camState.code));
   cameraFlipBtn.addEventListener("click", async () => {
+    if (recState.recording) return;
     camState.facing = camState.facing === "user" ? "environment" : "user";
     await startPhoneCamera(camState.code);
   });
+  cameraRecordBtn?.addEventListener("click", togglePhoneRecord);
+  cameraSaveBtn?.addEventListener("click", shareOrDownload);
 }
 
 function initPhonePage(codeFromUrl) {

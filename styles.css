@@ -233,12 +233,13 @@ body.is-camera-page .prompter {
 body.is-camera-page.camera-live .camera-join {
   max-width: none;
   justify-content: flex-end;
-  padding: 0 0 calc(28px + var(--safe-bottom));
+  padding: 0;
 }
 
 body.is-camera-page.camera-live .mark,
 body.is-camera-page.camera-live h1,
-body.is-camera-page.camera-live .camera-join-copy {
+body.is-camera-page.camera-live .camera-join-copy,
+body.is-camera-page.camera-live .camera-join-actions {
   display: none;
 }
 
@@ -282,10 +283,133 @@ body.is-camera-page.camera-live #camera-join-video.is-on {
   font-size: 1.05rem;
 }
 
-body.is-camera-page.camera-live .camera-join-actions,
-body.is-camera-page.camera-live .camera-join-status {
+.camera-app-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: calc(16px + var(--safe-top)) 24px calc(28px + var(--safe-bottom));
+  pointer-events: none;
+}
+
+.camera-app-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.camera-app-bottom {
+  display: grid;
+  grid-template-columns: 72px 1fr 72px;
+  align-items: center;
+  justify-items: center;
+  min-height: 88px;
+}
+
+.camera-app-ui button,
+.camera-app-ui .camera-join-status,
+.camera-app-ui .camera-rec-badge {
+  pointer-events: auto;
+}
+
+.camera-rec-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(12, 12, 11, 0.55);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+.camera-rec-badge .rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4d42;
+  animation: rec-flash 1s ease-in-out infinite;
+}
+
+.camera-app-ui .camera-join-status {
+  position: absolute;
+  top: calc(58px + var(--safe-top));
+  left: 24px;
+  right: 24px;
+  margin: 0;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
+}
+
+.camera-flip-btn {
+  width: 52px;
+  height: 52px;
+  border: 1px solid rgba(244, 241, 234, 0.22);
+  border-radius: 50%;
+  background: rgba(12, 12, 11, 0.35);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.camera-flip-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+body.camera-recording .camera-flip-btn {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.camera-shutter {
   position: relative;
-  z-index: 1;
+  width: 78px;
+  height: 78px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+
+.camera-shutter-ring {
+  position: absolute;
+  inset: 0;
+  border: 3px solid #f4f1ea;
+  border-radius: 50%;
+}
+
+.camera-shutter-core {
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  background: #e23b3b;
+  transition: inset 0.16s ease, border-radius 0.16s ease;
+}
+
+body.camera-recording .camera-shutter-core {
+  inset: 22px;
+  border-radius: 8px;
+}
+
+.camera-app-bottom .camera-flip-btn {
+  grid-column: 1;
+}
+
+.camera-app-bottom .camera-shutter {
+  grid-column: 2;
+}
+
+.camera-app-bottom .camera-save-btn {
+  grid-column: 3;
+  min-width: 0;
+  padding: 10px 12px;
+  font-size: 13px;
 }
 
 /* Prompter */
@@ -875,7 +999,8 @@ body.is-camera-page.camera-live .camera-join-status {
     transition: none;
   }
 
-  .rec-pill.is-live .rec-dot {
+  .rec-pill.is-live .rec-dot,
+  .camera-rec-badge .rec-dot {
     animation: none;
     opacity: 1;
   }
