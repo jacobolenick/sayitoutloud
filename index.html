@@ -40,7 +40,7 @@
       <section class="camera-join hidden" id="camera-join" aria-label="Phone camera">
         <p class="mark">Say it out loud</p>
         <h1>Phone camera</h1>
-        <p class="camera-join-copy" id="camera-join-copy">Allow the camera, then keep this page open.</p>
+        <p class="camera-join-copy" id="camera-join-copy">Opening your camera…</p>
 
         <form class="camera-code-form hidden" id="camera-code-form">
           <label class="sr-only" for="camera-code-input">Connection code</label>
@@ -56,11 +56,11 @@
           <button class="btn-primary" type="submit">Connect</button>
         </form>
 
-        <video id="camera-join-video" autoplay playsinline muted></video>
+        <video id="camera-join-video" autoplay playsinline webkit-playsinline muted></video>
         <p class="camera-join-status" id="camera-join-status"></p>
 
         <div class="camera-join-actions">
-          <button class="btn-primary" id="camera-start-btn" type="button">Start camera</button>
+          <button class="btn-primary hidden" id="camera-start-btn" type="button">Open camera</button>
           <button class="btn-secondary hidden" id="camera-flip-btn" type="button">Flip camera</button>
         </div>
       </section>

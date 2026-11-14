@@ -239,8 +239,8 @@ function startHost(forceNew) {
   const local =
     location.hostname === "localhost" || location.hostname === "127.0.0.1";
   camHintEl.textContent = local
-    ? "Scan or open the unique link on your phone. Phones need HTTPS, so localhost will not unlock the camera."
-    : "Scan the QR or open the unique link on your phone. Keep that page open.";
+    ? "Scan or open the unique link on your phone. The camera opens right away. Phones need HTTPS, so localhost will not unlock it."
+    : "Scan the QR or type the code on your phone. The camera opens right away. Keep that page open.";
   renderQr(url);
 
   const peer = new Peer(peerIdFromCode(camState.code), peerConfig());
@@ -275,15 +275,21 @@ function disconnectHost() {
 }
 
 async function getPhoneStream() {
-  const constraints = {
-    audio: false,
-    video: {
-      facingMode: { ideal: camState.facing },
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
-    },
-  };
-  return navigator.mediaDevices.getUserMedia(constraints);
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: { ideal: camState.facing },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+    });
+  } catch {
+    return navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: camState.facing },
+    });
+  }
 }
 
 function connectPhone(code, stream) {
@@ -319,16 +325,31 @@ function connectPhone(code, stream) {
   });
 }
 
+let cameraStarting = false;
+let cameraControlsBound = false;
+
+function showCameraFallback(message) {
+  cameraStartBtn.classList.remove("hidden");
+  cameraStartBtn.textContent = "Open camera";
+  cameraCopy.textContent = message;
+}
+
 async function startPhoneCamera(code) {
+  if (cameraStarting) return;
+  camState.code = code;
   if (!window.isSecureContext) {
-    cameraCopy.textContent = "Phones need a secure link (HTTPS) to use the camera.";
+    showCameraFallback("Phones need a secure link (HTTPS) to use the camera.");
     setJoinStatus("Open this site with https://, then enter the code.");
     return;
   }
   if (!navigator.mediaDevices?.getUserMedia) {
-    setJoinStatus("This browser cannot use the camera.");
+    showCameraFallback("This browser cannot open the camera.");
     return;
   }
+
+  cameraStarting = true;
+  cameraCopy.textContent = "Opening camera…";
+  cameraStartBtn.classList.add("hidden");
 
   try {
     if (camState.stream) {
@@ -338,15 +359,32 @@ async function startPhoneCamera(code) {
     cameraVideo.style.transform = camState.facing === "user" ? "scaleX(-1)" : "none";
     cameraVideo.srcObject = camState.stream;
     cameraVideo.classList.add("is-on");
+    document.body.classList.add("camera-live");
     cameraVideo.play().catch(() => {});
-    cameraStartBtn.classList.add("hidden");
-    cameraFlipBtn.classList.remove("hidden");
     cameraForm.classList.add("hidden");
-    cameraCopy.textContent = "Keep this page open while you record.";
+    cameraFlipBtn.classList.remove("hidden");
+    cameraCopy.textContent = "Keep this page open.";
     connectPhone(code, camState.stream);
   } catch (error) {
-    setJoinStatus("Camera permission is needed to send video to your computer.");
+    document.body.classList.remove("camera-live");
+    showCameraFallback("Tap Open camera to start.");
+    if (error?.name === "NotAllowedError") {
+      setJoinStatus("Allow camera access, then tap Open camera.");
+    }
+  } finally {
+    cameraStarting = false;
   }
+}
+
+function bindCameraControls(code) {
+  camState.code = code;
+  if (cameraControlsBound) return;
+  cameraControlsBound = true;
+  cameraStartBtn.addEventListener("click", () => startPhoneCamera(camState.code));
+  cameraFlipBtn.addEventListener("click", async () => {
+    camState.facing = camState.facing === "user" ? "environment" : "user";
+    await startPhoneCamera(camState.code);
+  });
 }
 
 function initPhonePage(codeFromUrl) {
@@ -360,21 +398,20 @@ function initPhonePage(codeFromUrl) {
     cameraCopy.textContent = "Enter the code from your computer.";
     cameraForm.classList.remove("hidden");
     cameraStartBtn.classList.add("hidden");
-    cameraForm.addEventListener("submit", (event) => {
+    cameraForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const next = cameraCodeInput.value.trim().toUpperCase();
       if (next.length < 4) return;
-      window.location.search = `?cam=${next}`;
+      history.replaceState({}, "", `?cam=${next}`);
+      cameraForm.classList.add("hidden");
+      bindCameraControls(next);
+      await startPhoneCamera(next);
     });
     return;
   }
 
-  cameraCopy.textContent = `Code ${code}. Allow the camera, then keep this page open.`;
-  cameraStartBtn.addEventListener("click", () => startPhoneCamera(code));
-  cameraFlipBtn.addEventListener("click", async () => {
-    camState.facing = camState.facing === "user" ? "environment" : "user";
-    await startPhoneCamera(code);
-  });
+  bindCameraControls(code);
+  startPhoneCamera(code);
 }
 
 function setupDockDrag() {

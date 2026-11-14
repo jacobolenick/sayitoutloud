@@ -230,6 +230,18 @@ body.is-camera-page .prompter {
   display: none !important;
 }
 
+body.is-camera-page.camera-live .camera-join {
+  max-width: none;
+  justify-content: flex-end;
+  padding: 0 0 calc(28px + var(--safe-bottom));
+}
+
+body.is-camera-page.camera-live .mark,
+body.is-camera-page.camera-live h1,
+body.is-camera-page.camera-live .camera-join-copy {
+  display: none;
+}
+
 #camera-join-video {
   width: min(220px, 58vw);
   aspect-ratio: 3 / 4;
@@ -245,12 +257,35 @@ body.is-camera-page .prompter {
   display: block;
 }
 
+body.is-camera-page.camera-live #camera-join-video.is-on {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
+  aspect-ratio: auto;
+  z-index: 0;
+}
+
 .camera-join-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 10px;
   margin-top: 22px;
+}
+
+#camera-start-btn {
+  min-width: min(280px, 86vw);
+  min-height: 56px;
+  font-size: 1.05rem;
+}
+
+body.is-camera-page.camera-live .camera-join-actions,
+body.is-camera-page.camera-live .camera-join-status {
+  position: relative;
+  z-index: 1;
 }
 
 /* Prompter */
